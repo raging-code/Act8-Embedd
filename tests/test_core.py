@@ -35,6 +35,10 @@ class LangDetect(unittest.TestCase):
     def test_forced_language(self):
         self.assertEqual(runs("Hello mahal ko", "tl"), [("tl", "Hello mahal ko")])
 
+    def test_english_words_inside_tagalog(self):
+        self.assertEqual(runs("Ang bilis ng internet ngayon, 100 percent stable."),
+                         [("tl", "Ang bilis ng internet ngayon, 100"), ("en", "percent stable.")])
+
     def test_unknown_inherits_previous(self):
         self.assertEqual(runs("Pumunta ako sa mall"), [("tl", "Pumunta ako sa mall")])
 
@@ -48,7 +52,11 @@ class Numbers(unittest.TestCase):
 
     def test_tagalog(self):
         self.assertEqual(normalize("may 3 aso", "tl"), "may tatlo aso")
-        self.assertEqual(normalize("2024", "tl"), "dalawa sero dalawa apat")
+        self.assertEqual(normalize("100", "tl"), "isang daan")
+        self.assertEqual(normalize("21", "tl"), "dalawampu at isa")
+        self.assertEqual(normalize("2024", "tl"), "dalawang libo at dalawampu at apat")
+        self.assertEqual(normalize("1,250", "tl"), "isang libo dalawang daan at limampu")
+        self.assertEqual(normalize("15", "tl"), "labinlima")
 
 
 class BadWords(unittest.TestCase):

@@ -6,6 +6,7 @@ them, so a sentence is split into a few clean runs instead of a choppy mess.
 The runs are then synthesised with the matching MMS voice.
 """
 import re
+from pathlib import Path
 
 _TL = """
 ang ng mga sa na ay ako ikaw ka siya kami tayo kayo sila ito iyan iyon yan yun yung eto ayan ayun
@@ -50,10 +51,24 @@ always never sometimes maybe because thanks sorry welcome goodbye bye yeah yep n
 """.split()
 
 # Words that mean something in both languages stay neutral (they inherit context).
-_BOTH = {"at", "no", "may", "man", "ate", "so", "to", "to", "ha", "an", "pa", "ok", "o", "mean",
-         "ago", "ma", "bag", "is", "sit", "ka", "sa", "me", "she", "hay", "kin"}
+_BOTH = {"at", "no", "may", "man", "ate", "so", "ha", "ok", "o"}
 TL_ONLY = set(_TL) - set(_EN) - _BOTH
 EN_ONLY = set(_EN) - set(_TL) - _BOTH
+
+
+def _load_list(name):
+    path = Path(__file__).resolve().parent.parent / "data" / name
+    try:
+        return {w.strip() for w in path.read_text(encoding="utf-8").splitlines()
+                if w.strip() and not w.startswith("#")}
+    except OSError:
+        return set()
+
+
+# Big generated lists (data/*.txt). The hand-written lists above always win on conflicts.
+_gen_en, _gen_tl = _load_list("en_words.txt"), _load_list("tl_words.txt")
+EN_ONLY = EN_ONLY | (_gen_en - TL_ONLY - _BOTH)
+TL_ONLY = TL_ONLY | (_gen_tl - EN_ONLY - _BOTH)
 
 _EN_CONTRACTION = {"t", "s", "re", "ve", "ll", "d", "m"}
 _TL_PREFIX = re.compile(r"^(mag|nag|pag|pang|nang|ipa|ipag|paki|maki|naka|maka|taga)[a-z]{3,}$")
