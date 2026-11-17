@@ -36,8 +36,20 @@ class LangDetect(unittest.TestCase):
         self.assertEqual(runs("Hello mahal ko", "tl"), [("tl", "Hello mahal ko")])
 
     def test_english_words_inside_tagalog(self):
+        # "100" describes "percent stable" (English), so the whole number+unit
+        # phrase must stay in the English run -- it must NOT get stranded with
+        # the Tagalog run just because it's adjacent to "ngayon,".
         self.assertEqual(runs("Ang bilis ng internet ngayon, 100 percent stable."),
-                         [("tl", "Ang bilis ng internet ngayon, 100"), ("en", "percent stable.")])
+                         [("tl", "Ang bilis ng internet ngayon,"), ("en", "100 percent stable.")])
+
+    def test_number_with_tagalog_unit_word(self):
+        self.assertEqual(runs("May 100 porsyentong tiyaga siya."),
+                         [("tl", "May 100 porsyentong tiyaga siya.")])
+
+    def test_number_between_tagalog_words_with_no_unit(self):
+        # No unit word to arbitrate -> falls back to the next word's language.
+        self.assertEqual(runs("May 50 estudyante sa classroom."),
+                         [("tl", "May 50 estudyante sa"), ("en", "classroom.")])
 
     def test_unknown_inherits_previous(self):
         self.assertEqual(runs("Pumunta ako sa mall"), [("tl", "Pumunta ako sa mall")])

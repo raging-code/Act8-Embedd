@@ -86,9 +86,22 @@ _STRIP = re.compile(r"^[^\w]+|[^\w]+$")
 _CONTR = re.compile(r"^(\w+)'(\w+)$")
 
 
+# Words that signal "this number is being read out in this language" even
+# though the number token itself has no letters to classify on its own.
+_EN_UNIT_WORDS = {"percent", "percentage", "dollars", "dollar", "kilometers",
+                   "kilometer", "km", "meters", "meter", "degrees", "degree"}
+_TL_UNIT_WORDS = {"porsyento", "piso", "kilometro", "metro", "digri"}
+
+
+def _is_number_token(core):
+    return bool(core) and re.fullmatch(r"\d+(?:[.,]\d+)*%?", core) is not None
+
+
 def classify_word(token):
     """Return 'tl', 'en' or None for a single whitespace-delimited token."""
     core = _STRIP.sub("", token).lower().replace("’", "'")
+    if _is_number_token(core):
+        return None  # numbers have no language of their own; resolved by neighbors (see _tag_sentence)
     if not core or not any(c.isalpha() for c in core):
         return None
     if core in TL_ONLY:
@@ -122,12 +135,45 @@ def classify_word(token):
     return None
 
 
+def _is_number(tok):
+    core = _STRIP.sub("", tok).lower()
+    return _is_number_token(core)
+
+
+def _resolve_numbers(tokens, tags):
+    """Numbers inherit from the side whose language they actually belong to.
+
+    Preference order: (1) a unit word immediately following the number (e.g.
+    "100 percent" -> 'en', "100 porsyento" -> 'tl') always wins, since that's
+    the strongest signal of what the number is describing; (2) otherwise the
+    tag of the next known word; (3) otherwise the tag of the previous known
+    word. This avoids numbers getting stranded on the wrong side of a comma
+    just because of forward-fill from an unrelated earlier word.
+    """
+    n = len(tokens)
+    for i, tok in enumerate(tokens):
+        if not _is_number(tok):
+            continue
+        nxt_core = _STRIP.sub("", tokens[i + 1]).lower() if i + 1 < n else ""
+        if nxt_core in _EN_UNIT_WORDS:
+            tags[i] = "en"
+            continue
+        if nxt_core in _TL_UNIT_WORDS:
+            tags[i] = "tl"
+            continue
+        nxt_tag = tags[i + 1] if i + 1 < n else None
+        prev_tag = tags[i - 1] if i > 0 else None
+        tags[i] = nxt_tag or prev_tag  # may still be None; filled below
+    return tags
+
+
 def _tag_sentence(tokens, mode, fallback):
     if mode in ("en", "tl"):
         return [mode] * len(tokens)
     tags = [classify_word(t) for t in tokens]
+    tags = _resolve_numbers(tokens, tags)
     last = None
-    for i, t in enumerate(tags):          # forward fill
+    for i, t in enumerate(tags):          # forward fill whatever's still unknown
         if t is None:
             tags[i] = last
         else:
