@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded voice models (~300 MB, re-create with: python download_models.py)
+models/
+
+# Generated audio and cache
+outputs/*
+!outputs/.gitkeep
+
+# Editor / OS
+.vscode/*
+!.vscode/launch.json
+.DS_Store
+Thumbs.db

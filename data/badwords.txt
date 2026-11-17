@@ -1,0 +1,50 @@
+# Words/phrases that trigger the buzzer. One per line, lower case, "#" = comment.
+# Edit freely - changes load when the app restarts (or POST /api/badwords/reload).
+
+# --- English ---
+fuck
+motherfucker
+shit
+bullshit
+bitch
+bastard
+asshole
+dick
+damn
+crap
+piss
+slut
+whore
+cunt
+dumbass
+idiot
+stupid
+ass
+douchebag
+
+# --- Tagalog / Taglish ---
+putang ina
+putangina
+tang ina
+tangina
+puta
+gago
+gaga
+tanga
+bobo
+ulol
+tarantado
+punyeta
+leche
+lintik
+buwisit
+bwisit
+pakyu
+pakshet
+shet
+hayop ka
+animal ka
+walanghiya
+siraulo
+inutil
+pokpok

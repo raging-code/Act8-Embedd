@@ -1,0 +1,7 @@
+flask>=3.0
+numpy
+torch
+transformers>=4.40
+# Buzzer on Raspberry Pi (harmless on a PC - the app falls back to a simulated buzzer).
+# On Raspberry Pi OS also run:  sudo apt install python3-gpiozero python3-lgpio
+gpiozero>=2.0; platform_system == "Linux"

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-Bot · Multilingual TTS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">◖◗</span>
+    <div>
+      <h1>Mini-Bot</h1>
+      <p>Multilingual text-to-speech · English / Tagalog</p>
+    </div>
+  </div>
+  <div class="leds" role="status" aria-live="polite">
+    <span class="led" id="led-engine"><i></i><b>ENGINE</b><em id="led-engine-t">…</em></span>
+    <span class="led" id="led-buzzer"><i></i><b>BUZZER</b><em id="led-buzzer-t">…</em></span>
+    <span class="led" id="led-speaker"><i></i><b>SPEAKER</b><em id="led-speaker-t">…</em></span>
+  </div>
+</header>
+
+<main>
+  <section class="panel composer" aria-labelledby="h-input">
+    <h2 id="h-input"><span>01</span> Text input</h2>
+
+    <label class="sr" for="text">Text to speak</label>
+    <textarea id="text" maxlength="{{ max_chars }}" rows="5" spellcheck="false"
+      placeholder="Type English, Tagalog, or both… e.g. Kumusta! Welcome to our lab, salamat sa pagbisita."></textarea>
+    <div class="meta"><span id="count">0 / {{ max_chars }}</span>
+      <span class="samples">Try:
+        <button type="button" class="chip-btn" data-sample="Magandang umaga po! Today we will test the Raspberry Pi.">Taglish</button>
+        <button type="button" class="chip-btn" data-sample="Kumain ka na ba? I made adobo for lunch, masarap talaga.">Taglish 2</button>
+        <button type="button" class="chip-btn" data-sample="Ang bilis ng internet ngayon, 100 percent stable.">Numbers</button>
+        <button type="button" class="chip-btn" data-sample="Hey, don't be a gago, that is shit!">Buzzer</button>
+      </span>
+    </div>
+
+    <div id="preview" class="preview" aria-live="polite"></div>
+
+    <div class="grid2">
+      <fieldset>
+        <legend>Language</legend>
+        <div class="seg" id="lang-seg" role="radiogroup" aria-label="Language">
+          <button type="button" role="radio" aria-checked="true" data-v="auto" class="on">Auto-mix</button>
+          <button type="button" role="radio" aria-checked="false" data-v="en">English</button>
+          <button type="button" role="radio" aria-checked="false" data-v="tl">Tagalog</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Voice</legend>
+        <select id="voice" aria-label="Voice">
+          <option value="standard">Standard</option>
+          <option value="deep">Deep</option>
+          <option value="bright">Bright</option>
+        </select>
+      </fieldset>
+    </div>
+
+    <div class="sliders">
+      <label>Speed <output id="rate-o">1.0×</output>
+        <input type="range" id="rate" min="0.6" max="1.5" step="0.05" value="1"></label>
+      <label>Volume <output id="vol-o">100%</output>
+        <input type="range" id="volume" min="10" max="100" step="5" value="100"></label>
+    </div>
+
+    <div class="toggles">
+      <label><input type="checkbox" id="play-browser" checked> Play in browser</label>
+      <label><input type="checkbox" id="play-device"> Play on device speaker (Pi)</label>
+      <label><input type="checkbox" id="block"> Block speech if bad words found</label>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="speak" class="primary">Speak ▸</button>
+      <button type="button" id="stop">Stop</button>
+      <a id="download" class="btn disabled" href="#" aria-disabled="true">Download .wav</a>
+    </div>
+    <p id="msg" class="msg" role="alert"></p>
+  </section>
+
+  <section class="panel bot" aria-labelledby="h-bot" id="bot-panel">
+    <h2 id="h-bot"><span>02</span> Talking Mini-Bot</h2>
+    <svg viewBox="0 0 200 190" class="botsvg" role="img" aria-label="Mini-Bot face">
+      <line x1="100" y1="10" x2="100" y2="34" class="ant"/>
+      <circle cx="100" cy="9" r="6" id="antled"/>
+      <rect x="28" y="34" width="144" height="124" rx="26" class="head"/>
+      <rect x="40" y="46" width="120" height="100" rx="18" class="screen"/>
+      <ellipse class="eye" cx="76" cy="84" rx="10" ry="12"/>
+      <ellipse class="eye" cx="124" cy="84" rx="10" ry="12"/>
+      <ellipse id="mouth" cx="100" cy="124" rx="24" ry="3"/>
+      <rect x="10" y="80" width="12" height="36" rx="5" class="ear"/>
+      <rect x="178" y="80" width="12" height="36" rx="5" class="ear"/>
+    </svg>
+    <p class="now-label">Now speaking</p>
+    <div id="now" class="now"><span class="idle">Waiting for text…</span></div>
+    <audio id="player" preload="auto"></audio>
+  </section>
+
+  <section class="panel dash" aria-labelledby="h-dash">
+    <h2 id="h-dash"><span>03</span> Dashboard</h2>
+    <div class="tiles">
+      <div class="tile"><b id="t-req">0</b><span>requests</span></div>
+      <div class="tile"><b id="t-flag">0</b><span>flagged</span></div>
+      <div class="tile"><b id="t-ms">–</b><span>avg synth</span></div>
+      <div class="tile" id="tile-buzz"><b id="t-buzz">0</b><span>buzzer alerts</span></div>
+    </div>
+    <div class="mix">
+      <div class="mixlabel"><span>Words spoken</span><span id="mix-t">–</span></div>
+      <div class="mixbar"><i id="mix-en"></i><i id="mix-tl"></i></div>
+      <div class="legend"><span class="en">● English</span><span class="tl">● Tagalog</span></div>
+    </div>
+    <dl class="sys">
+      <div><dt>Device</dt><dd id="s-dev">–</dd></div>
+      <div><dt>Voice engine</dt><dd id="s-eng">–</dd></div>
+      <div><dt>Buzzer</dt><dd id="s-buz">–</dd></div>
+      <div><dt>Bad-word list</dt><dd id="s-bw">–</dd></div>
+    </dl>
+    <button type="button" id="buzz-test" class="small">Test buzzer</button>
+  </section>
+
+  <section class="panel history" aria-labelledby="h-hist">
+    <h2 id="h-hist"><span>04</span> Spoken log
+      <button type="button" id="clear-hist" class="small">Clear</button></h2>
+    <ol id="hist" class="hist"><li class="empty">Nothing spoken yet.</li></ol>
+  </section>
+</main>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
