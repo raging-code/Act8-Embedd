@@ -5,6 +5,7 @@ MMSEngine  - Meta MMS-TTS (VITS) models, fully offline once downloaded:
                Tagalog -> facebook/mms-tts-tgl
 MockEngine - generates simple tones; lets you test the web app without torch/models.
 """
+import hashlib
 import os
 import threading
 import time
@@ -82,6 +83,13 @@ class MMSEngine(BaseEngine):
                 tok = AutoTokenizer.from_pretrained(name, **kw)
                 model = VitsModel.from_pretrained(name, **kw)
             model.eval()
+            # Reduce stochastic-duration variance (default noise_scale_duration
+            # is 0.8, which is high enough to occasionally sample a very long
+            # pause for a short phrase -- this is what produced the ~1 second
+            # of dead air you were hearing as "gibberish" mid-sentence). This
+            # does not disable randomness, just narrows how extreme an outlier
+            # duration draw can be.
+            model.noise_scale_duration = 0.3
             lang_sr = int(model.config.sampling_rate)
             # NOTE: self.sample_rate is only a "last loaded language" default
             # (used by warmup()/info() before anything has been synthesized).
@@ -110,7 +118,20 @@ class MMSEngine(BaseEngine):
             if inputs["input_ids"].shape[-1] == 0:
                 return np.zeros(0, dtype=np.float32), lang_sr
             model.speaking_rate = float(rate)
-            torch.manual_seed(555)  # same text -> same voice every time
+            # VITS/MMS predicts each phoneme's DURATION stochastically (that's
+            # what config.noise_scale_duration controls, default 0.8 -- not a
+            # small amount of randomness). A fixed seed makes output
+            # reproducible, but it also means an unlucky seed can permanently
+            # "lock in" an abnormally long sampled pause for one particular
+            # piece of text -- every run of that exact text gets the exact
+            # same outlier silence baked into the waveform, forever, no
+            # matter what surrounding code changes. That looks exactly like a
+            # code bug (100% reproducible, same spot every time) but isn't
+            # one. Seeding from the text itself keeps results reproducible
+            # per distinct phrase while no longer pinning EVERY phrase to
+            # whatever duration-noise seed-555 happens to sample.
+            seed = int(hashlib.sha1(text.encode()).hexdigest(), 16) % (2**31)
+            torch.manual_seed(seed)
             with torch.inference_mode():
                 wave_t = model(**inputs).waveform[0]
             return wave_t.cpu().numpy().astype(np.float32), lang_sr
