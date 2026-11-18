@@ -25,6 +25,32 @@ OUT_DIR = BASE / "outputs"
 MODEL_DIR = BASE / "models"
 OUT_DIR.mkdir(exist_ok=True)
 
+
+def _code_fingerprint():
+    """A short hash of the TTS-affecting source files.
+
+    This is folded into the cache key below so that editing engine.py,
+    langdetect.py or textnorm.py (fixing a pronunciation bug, say) invalidates
+    every old cached .wav automatically. Without this, the cache key was built
+    only from the TEXT + voice/rate/volume/engine-name -- none of which change
+    when the code is patched. So a .wav file synthesized by an old, buggy
+    version of the code would keep matching the same cache key forever, and
+    the server would keep serving that stale, wrong audio off disk instead of
+    ever re-synthesizing it -- even after the bug was fixed. ("from cache" in
+    the UI was the tell.)
+    """
+    paths = [BASE / "minibot" / f for f in ("engine.py", "langdetect.py", "textnorm.py")]
+    h = hashlib.sha1()
+    for p in paths:
+        try:
+            h.update(p.read_bytes())
+        except OSError:
+            pass
+    return h.hexdigest()[:10]
+
+
+_CODE_FINGERPRINT = _code_fingerprint()
+
 MAX_CHARS = int(os.environ.get("MAX_CHARS", 600))
 KEEP_FILES = 60
 
@@ -111,7 +137,7 @@ def speak():
                                 "flagged": flagged, "blocked": True, "url": None})
         return jsonify(ok=True, blocked=True, flagged=flagged, segments=segments, words=counts)
 
-    key = hashlib.sha1(json.dumps([segments, voice, rate, volume, engine.name]).encode()).hexdigest()[:16]
+    key = hashlib.sha1(json.dumps([segments, voice, rate, volume, engine.name, _CODE_FINGERPRINT]).encode()).hexdigest()[:16]
     name = f"tts_{key}.wav"
     path = OUT_DIR / name
     meta = OUT_DIR / f"tts_{key}.json"

@@ -131,7 +131,7 @@ class MockEngine(BaseEngine):
         freq = 220.0 if lang == "en" else 330.0
         wave_a = np.sin(2 * np.pi * freq * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 6 * t))
         env = np.minimum(1, np.minimum(t, dur - t) / 0.02)
-        return (wave_a * env * 0.6).astype(np.float32), self.sample_rate, self.sample_rate
+        return (wave_a * env * 0.6).astype(np.float32), self.sample_rate
 
 
 def create_engine(kind, cache_dir):
