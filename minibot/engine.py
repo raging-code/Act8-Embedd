@@ -25,6 +25,42 @@ GAP_SENTENCE = 0.30   # seconds of silence after a sentence
 GAP_SWITCH = 0.06     # seconds between language runs inside a sentence
 
 
+def compress_gaps(wav, sr, max_gap=0.18, thresh_db=-40.0, win=0.01):
+    """Shorten silences longer than max_gap (seconds) INSIDE a waveform to max_gap.
+    MMS/VITS sometimes samples a ~1s pause at a word boundary; this removes it.
+    Leading and trailing silence are left untouched."""
+    if len(wav) < sr // 10:
+        return wav
+    h = max(1, int(sr * win))
+    n = len(wav) // h
+    if n < 3:
+        return wav
+    env = np.sqrt((wav[: n * h].reshape(n, h) ** 2).mean(axis=1))
+    peak = float(env.max())
+    if peak <= 0:
+        return wav
+    quiet = env < peak * (10 ** (thresh_db / 20.0))
+    voiced = np.flatnonzero(~quiet)
+    if len(voiced) == 0:
+        return wav
+    first, last = int(voiced[0]), int(voiced[-1])
+    keep = int(max_gap / win)
+    out, i = [wav[: first * h]], first
+    while i <= last:
+        j = i
+        while j <= last and quiet[j] == quiet[i]:
+            j += 1
+        seg = wav[i * h : j * h]
+        if quiet[i] and (j - i) > keep:
+            half = keep * h // 2
+            seg = np.concatenate([seg[:half], seg[-half:]])
+        out.append(seg)
+        i = j
+    out.append(wav[(last + 1) * h :])
+    return np.concatenate(out).astype(np.float32)
+
+
+
 class BaseEngine:
     name = "base"
     sample_rate = 16000
@@ -89,7 +125,7 @@ class MMSEngine(BaseEngine):
             # of dead air you were hearing as "gibberish" mid-sentence). This
             # does not disable randomness, just narrows how extreme an outlier
             # duration draw can be.
-            model.noise_scale_duration = 0.3
+            model.noise_scale_duration = 0.1
             lang_sr = int(model.config.sampling_rate)
             # NOTE: self.sample_rate is only a "last loaded language" default
             # (used by warmup()/info() before anything has been synthesized).
@@ -134,7 +170,8 @@ class MMSEngine(BaseEngine):
             torch.manual_seed(seed)
             with torch.inference_mode():
                 wave_t = model(**inputs).waveform[0]
-            return wave_t.cpu().numpy().astype(np.float32), lang_sr
+            wave_np = wave_t.cpu().numpy().astype(np.float32)
+            return compress_gaps(wave_np, lang_sr), lang_sr
 
 
 class MockEngine(BaseEngine):
