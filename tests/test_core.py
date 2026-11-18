@@ -57,7 +57,11 @@ class LangDetect(unittest.TestCase):
 
 class Numbers(unittest.TestCase):
     def test_english(self):
-        self.assertEqual(normalize("I have 21 apples", "en"), "I have twenty one apples")
+        # normalize() now lowercases and strips punctuation the MMS vocab
+        # doesn't support (commas, periods) -- the models are trained on
+        # lowercased, unpunctuated text, so leaving those in produces
+        # out-of-vocabulary tokens that come out as garbled audio.
+        self.assertEqual(normalize("I have 21 apples", "en"), "i have twenty one apples")
         self.assertEqual(normalize("1,250", "en"), "one thousand two hundred fifty")
         self.assertEqual(normalize("3.14", "en"), "three point one four")
         self.assertEqual(normalize("100%", "en"), "one hundred percent")

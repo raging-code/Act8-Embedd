@@ -91,10 +91,23 @@ def _speak_number(match, lang):
     return " " + out + " "
 
 
+# MMS-TTS (VITS) checkpoints are trained on lowercased, unpunctuated text and
+# their vocabs are tiny -- usually just a-z, space, apostrophe and hyphen.
+# A comma, period or other symbol that isn't in the vocab doesn't make the
+# model pause; it becomes an out-of-vocabulary token the model has never
+# seen, which is what produces the garbled/"gibberish" sound. So punctuation
+# is dropped here rather than left for the tokenizer to guess at.
+_KEEP_PUNCT = re.compile(r"[^a-zA-Z0-9\s'-]")
+_DASH_RUN = re.compile(r"-{2,}")
+
+
 def normalize(text, lang):
     text = text.replace("&", " and " if lang == "en" else " at ")
     text = _NUM.sub(lambda m: _speak_number(m, lang), text)
-    return re.sub(r"\s+", " ", text).strip()
+    text = _KEEP_PUNCT.sub(" ", text)          # drop commas, periods, etc.
+    text = _DASH_RUN.sub("-", text)
+    text = text.lower()
+    return re.sub(r"\s+", " ", text).strip(" -'")
 
 
 def has_letters(text):

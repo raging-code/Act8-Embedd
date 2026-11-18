@@ -82,10 +82,21 @@ class MMSEngine(BaseEngine):
                 tok = AutoTokenizer.from_pretrained(name, **kw)
                 model = VitsModel.from_pretrained(name, **kw)
             model.eval()
-            self.sample_rate = int(model.config.sampling_rate)
-            self._models[lang] = (tok, model, torch)
+            lang_sr = int(model.config.sampling_rate)
+            # NOTE: self.sample_rate is only a "last loaded language" default
+            # (used by warmup()/info() before anything has been synthesized).
+            # It must NEVER be read inside render_audio() to interpret a
+            # specific segment's waveform -- each language can have its own
+            # native rate, and overwriting one shared attribute here caused
+            # exactly that bug: whichever language's model loaded LAST would
+            # silently decide the playback rate for EVERY segment, including
+            # ones synthesized by the other language's model. That mismatch
+            # is what produced the garbled audio right at the seam between
+            # the Tagalog and English chunks.
+            self.sample_rate = lang_sr
+            self._models[lang] = (tok, model, torch, lang_sr)
             self.loaded = sorted(self._models)
-            print(f"[engine] loaded {name}", flush=True)
+            print(f"[engine] loaded {name} (sample_rate={lang_sr})", flush=True)
             return self._models[lang]
 
     def warmup(self):
@@ -94,15 +105,15 @@ class MMSEngine(BaseEngine):
 
     def synthesize(self, lang, text, rate):
         with self._lock:
-            tok, model, torch = self._get(lang)
+            tok, model, torch, lang_sr = self._get(lang)
             inputs = tok(text, return_tensors="pt")
             if inputs["input_ids"].shape[-1] == 0:
-                return np.zeros(0, dtype=np.float32)
+                return np.zeros(0, dtype=np.float32), lang_sr
             model.speaking_rate = float(rate)
             torch.manual_seed(555)  # same text -> same voice every time
             with torch.inference_mode():
                 wave_t = model(**inputs).waveform[0]
-            return wave_t.cpu().numpy().astype(np.float32)
+            return wave_t.cpu().numpy().astype(np.float32), lang_sr
 
 
 class MockEngine(BaseEngine):
@@ -120,7 +131,7 @@ class MockEngine(BaseEngine):
         freq = 220.0 if lang == "en" else 330.0
         wave_a = np.sin(2 * np.pi * freq * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 6 * t))
         env = np.minimum(1, np.minimum(t, dur - t) / 0.02)
-        return (wave_a * env * 0.6).astype(np.float32)
+        return (wave_a * env * 0.6).astype(np.float32), self.sample_rate, self.sample_rate
 
 
 def create_engine(kind, cache_dir):
@@ -136,28 +147,50 @@ def _pitch_shift(wav, factor):
     return np.interp(np.linspace(0, len(wav) - 1, n), np.arange(len(wav)), wav).astype(np.float32)
 
 
+def _resample(wav, from_sr, to_sr):
+    """Linear-interpolation resample. Cheap, but MMS output has no high-frequency
+    content near Nyquist that would make that a problem for this use case."""
+    if from_sr == to_sr or len(wav) < 2:
+        return wav
+    n = max(2, round(len(wav) * to_sr / from_sr))
+    return np.interp(np.linspace(0, len(wav) - 1, n), np.arange(len(wav)), wav).astype(np.float32)
+
+
 def render_audio(engine, segments, voice="standard", rate=1.0, volume=1.0):
     """Synthesise all segments -> (float32 audio, sample_rate, timeline).
 
     timeline = [{text, lang, t0, t1}] so the UI can highlight what is being spoken.
+
+    Each language's model can have its own native sample rate. Every segment's
+    audio is resampled (if needed) to a single OUTPUT rate -- fixed as the
+    first segment's rate -- before being concatenated. Previously the code
+    read a single shared `engine.sample_rate` attribute *after all segments
+    were already synthesized*, so it reflected whichever language's model
+    happened to load last, and applied that one rate to the entire buffer
+    regardless of what rate each chunk was actually recorded at. If the two
+    models' rates ever differ, that mismatch is exactly what would produce a
+    garbled-sounding discontinuity right at the seam between language runs.
     """
     pitch = VOICES.get(voice, 1.0)
     model_rate = float(np.clip(rate / pitch, 0.3, 2.5))
     chunks, timeline, t = [], [], 0.0
+    out_sr = None
     for seg in segments:
         text = normalize(seg["text"], seg["lang"])
-        parts = [engine.synthesize(seg["lang"], p, model_rate)
-                 for p in split_long(text) if has_letters(p)]
-        parts = [p for p in parts if len(p)]
-        if not parts:
+        synthesized = [engine.synthesize(seg["lang"], p, model_rate)
+                       for p in split_long(text) if has_letters(p)]
+        synthesized = [(w, sr) for w, sr in synthesized if len(w)]
+        if not synthesized:
             continue
-        sr = engine.sample_rate
+        if out_sr is None:
+            out_sr = synthesized[0][1]  # fix the output rate from the first real chunk
+        parts = [_resample(w, sr, out_sr) for w, sr in synthesized]
         wav = _pitch_shift(np.concatenate(parts), pitch)
-        pad = np.zeros(int(sr * (GAP_SENTENCE if seg["sentence_end"] else GAP_SWITCH)), dtype=np.float32)
-        dur = len(wav) / sr
+        pad = np.zeros(int(out_sr * (GAP_SENTENCE if seg["sentence_end"] else GAP_SWITCH)), dtype=np.float32)
+        dur = len(wav) / out_sr
         timeline.append({"text": seg["text"], "lang": seg["lang"], "t0": round(t, 3), "t1": round(t + dur, 3)})
         chunks += [wav, pad]
-        t += dur + len(pad) / sr
+        t += dur + len(pad) / out_sr
     if not chunks:
         raise ValueError("Nothing speakable in the text (only symbols or unsupported characters).")
     audio = np.concatenate(chunks)
@@ -165,7 +198,7 @@ def render_audio(engine, segments, voice="standard", rate=1.0, volume=1.0):
     if peak > 0:
         audio = audio / peak * 0.9
     audio = np.clip(audio * float(volume), -1.0, 1.0)
-    return audio, engine.sample_rate, timeline
+    return audio, out_sr, timeline
 
 
 def write_wav(path, audio, sample_rate):
