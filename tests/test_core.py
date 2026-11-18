@@ -40,7 +40,7 @@ class LangDetect(unittest.TestCase):
         # phrase must stay in the English run -- it must NOT get stranded with
         # the Tagalog run just because it's adjacent to "ngayon,".
         self.assertEqual(runs("Ang bilis ng internet ngayon, 100 percent stable."),
-                         [("tl", "Ang bilis ng internet ngayon,"), ("en", "100 percent stable.")])
+                         [("tl", "Ang bilis ng"), ("en", "internet"), ("tl", "ngayon,"), ("en", "100 percent stable.")])
 
     def test_number_with_tagalog_unit_word(self):
         self.assertEqual(runs("May 100 porsyentong tiyaga siya."),

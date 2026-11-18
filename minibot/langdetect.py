@@ -93,6 +93,13 @@ _EN_UNIT_WORDS = {"percent", "percentage", "dollars", "dollar", "kilometers",
 _TL_UNIT_WORDS = {"porsyento", "piso", "kilometro", "metro", "digri"}
 
 
+# English words Filipinos say as-is. The Tagalog MMS model garbles them (long silent
+# gaps / gibberish), so they are always spoken by the English voice.
+_EN_LOANWORDS = set("""
+internet wifi wi-fi online offline laptop cellphone smartphone email website facebook
+youtube messenger password download upload wifi router network software hardware
+""".split())
+
 def _is_number_token(core):
     return bool(core) and re.fullmatch(r"\d+(?:[.,]\d+)*%?", core) is not None
 
@@ -104,6 +111,8 @@ def classify_word(token):
         return None  # numbers have no language of their own; resolved by neighbors (see _tag_sentence)
     if not core or not any(c.isalpha() for c in core):
         return None
+    if core in _EN_LOANWORDS:
+        return "en"
     if core in TL_ONLY:
         return "tl"
     if core in EN_ONLY:
