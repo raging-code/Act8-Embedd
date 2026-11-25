@@ -122,6 +122,8 @@ def classify_word(token):
 
     m = _CONTR.match(core)
     if m:
+        if classify_word(m.group(1)) == "tl":      # iba't, kaya't, ako'y ... = Tagalog
+            return "tl"
         if m.group(2) in _EN_CONTRACTION:
             return "en"
         if m.group(2) == "y":
@@ -176,6 +178,47 @@ def _resolve_numbers(tokens, tags):
     return tags
 
 
+# A language run shorter than this many words is too little text for VITS: it gives
+# odd rhythm, mispronunciations and an audible pause at every seam. Short English
+# runs inside Tagalog are therefore folded into the neighbouring Tagalog run (the
+# Tagalog model reads English spellings with a natural Filipino accent). Short
+# Tagalog runs are kept, because the English model mangles Tagalog words.
+# Set to 1 to turn smoothing off.
+MIN_EN_RUN = 3
+
+
+def _is_locked(token):
+    """English loanwords that must always be spoken by the English voice."""
+    return _STRIP.sub("", token).lower().replace("\u2019", "'") in _EN_LOANWORDS
+
+
+def _smooth_tags(tokens, tags, min_en_run=MIN_EN_RUN):
+    tags = list(tags)
+    if min_en_run <= 1:
+        return tags
+    while True:
+        runs, i = [], 0
+        while i < len(tags):
+            j = i
+            while j < len(tags) and tags[j] == tags[i]:
+                j += 1
+            runs.append((i, j, tags[i]))
+            i = j
+        if len(runs) < 2:
+            return tags
+        cands = [k for k, (a, b, lang) in enumerate(runs)
+                 if lang == "en" and b - a < min_en_run
+                 and not any(_is_locked(t) for t in tokens[a:b])]
+        if not cands:
+            return tags
+        k = min(cands, key=lambda c: runs[c][1] - runs[c][0])
+        a, b, _ = runs[k]
+        nbrs = [runs[x] for x in (k - 1, k + 1) if 0 <= x < len(runs)]
+        target = max(nbrs, key=lambda r: r[1] - r[0])[2]   # neighbours are always 'tl'
+        for x in range(a, b):
+            tags[x] = target
+
+
 def _tag_sentence(tokens, mode, fallback):
     if mode in ("en", "tl"):
         return [mode] * len(tokens)
@@ -188,7 +231,8 @@ def _tag_sentence(tokens, mode, fallback):
         else:
             last = t
     first = next((t for t in tags if t), None) or fallback
-    return [t or first for t in tags]     # leading unknowns take the first known tag
+    tags = [t or first for t in tags]     # leading unknowns take the first known tag
+    return _smooth_tags(tokens, tags)
 
 
 def segment_text(text, mode="auto"):

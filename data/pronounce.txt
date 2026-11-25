@@ -1,0 +1,10 @@
+# Pronunciation fixes. One per line:   word=how it should be spelled for the voice
+#   word=respelling        -> used by both the English and the Tagalog voice
+#   en:word=respelling     -> English voice only
+#   tl:word=respelling     -> Tagalog voice only
+# Lines starting with # are ignored. Restart the app after editing.
+# Tip: respell the word the way it SOUNDS in that language, then listen and adjust.
+#
+# Examples (remove the # and tweak until it sounds right):
+# en:mini-bot=mini bot
+# tl:wifi=wayfay

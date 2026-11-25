@@ -30,7 +30,8 @@ class LangDetect(unittest.TestCase):
 
     def test_sentence_split(self):
         r = runs("Hello po. Kumusta ka na? I'm fine, salamat!")
-        self.assertEqual([l for l, _ in r], ["en", "tl", "tl", "en", "tl"])
+        # "Hello po." is too short to stand as an English run -> folded into Tagalog.
+        self.assertEqual([l for l, _ in r], ["tl", "tl", "tl"])
 
     def test_forced_language(self):
         self.assertEqual(runs("Hello mahal ko", "tl"), [("tl", "Hello mahal ko")])
@@ -49,10 +50,49 @@ class LangDetect(unittest.TestCase):
     def test_number_between_tagalog_words_with_no_unit(self):
         # No unit word to arbitrate -> falls back to the next word's language.
         self.assertEqual(runs("May 50 estudyante sa classroom."),
-                         [("tl", "May 50 estudyante sa"), ("en", "classroom.")])
+                         [("tl", "May 50 estudyante sa classroom.")])
 
     def test_unknown_inherits_previous(self):
         self.assertEqual(runs("Pumunta ako sa mall"), [("tl", "Pumunta ako sa mall")])
+
+
+class Smoothing(unittest.TestCase):
+    def test_tagalog_at_contraction(self):
+        self.assertEqual(runs("ibang wika"), [("tl", "ibang wika")])
+        self.assertEqual(runs("iba't ibang wika"), [("tl", "iba't ibang wika")])
+
+    def test_short_english_runs_fold_into_tagalog(self):
+        self.assertEqual(runs("Kumain na ako ng lunch kanina pero gutom pa rin ako"),
+                         [("tl", "Kumain na ako ng lunch kanina pero gutom pa rin ako")])
+
+    def test_long_english_run_is_kept(self):
+        self.assertEqual(runs("Let's order pizza mamaya"),
+                         [("en", "Let's order pizza"), ("tl", "mamaya")])
+
+    def test_loanword_stays_english(self):
+        self.assertEqual([l for l, _ in runs("Ang bilis ng internet ngayon")],
+                         ["tl", "en", "tl"])
+
+
+class Engine(unittest.TestCase):
+    def test_trim_edges_removes_silence_but_keeps_speech(self):
+        import numpy as np
+        from minibot.engine import trim_edges
+        sr = 16000
+        tone = (0.5 * np.sin(2 * np.pi * 220 * np.arange(sr // 2) / sr)).astype(np.float32)
+        wav = np.concatenate([np.zeros(sr), tone, np.zeros(sr)])
+        out = trim_edges(wav, sr)
+        self.assertLess(len(out), len(tone) + int(0.1 * sr))
+        self.assertGreater(len(out), len(tone) * 0.95)
+
+    def test_pronunciation_override(self):
+        import re
+        from minibot import textnorm
+        textnorm._PRON["en"].append((re.compile(r"(?<![\w'-])zzword(?![\w'-])", re.I), "zed word"))
+        try:
+            self.assertEqual(textnorm.normalize("Say ZZWord now", "en"), "say zed word now")
+        finally:
+            textnorm._PRON["en"].pop()
 
 
 class Numbers(unittest.TestCase):

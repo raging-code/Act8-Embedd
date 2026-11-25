@@ -4,6 +4,7 @@ MMS tokenizers silently drop digits and symbols, so numbers would be skipped.
 We spell them out: English words for 'en' runs, proper Tagalog number words for 'tl' runs.
 """
 import re
+from pathlib import Path
 
 _ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
          "fifteen sixteen seventeen eighteen nineteen").split()
@@ -101,7 +102,45 @@ _KEEP_PUNCT = re.compile(r"[^a-zA-Z0-9\s'-]")
 _DASH_RUN = re.compile(r"-{2,}")
 
 
+# ---- Pronunciation overrides (data/pronunciations.txt) ----
+# One per line:  word=respelling   (applies to both voices)
+#                en:word=respelling   or   tl:word=respelling   (one voice only)
+_PRON_FILE = Path(__file__).resolve().parent.parent / "data" / "pronunciations.txt"
+_PRON = {"en": [], "tl": []}
+
+
+def load_pronunciations(path=_PRON_FILE):
+    _PRON["en"].clear()
+    _PRON["tl"].clear()
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return 0
+    n = 0
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, spoken = line.partition("=")
+        key, spoken = key.strip().lower(), spoken.strip()
+        langs = ("en", "tl")
+        if key[:3] in ("en:", "tl:"):
+            langs, key = (key[:2],), key[3:].strip()
+        if not key:
+            continue
+        pat = re.compile(r"(?<![\w'-])" + re.escape(key) + r"(?![\w'-])", re.IGNORECASE)
+        for lg in langs:
+            _PRON[lg].append((pat, spoken))
+        n += 1
+    return n
+
+
+load_pronunciations()
+
+
 def normalize(text, lang):
+    for pat, spoken in _PRON.get(lang, ()):
+        text = pat.sub(lambda _m, sp=spoken: " " + sp + " ", text)
     text = text.replace("&", " and " if lang == "en" else " at ")
     text = _NUM.sub(lambda m: _speak_number(m, lang), text)
     text = _KEEP_PUNCT.sub(" ", text)          # drop commas, periods, etc.

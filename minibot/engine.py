@@ -21,8 +21,12 @@ MODELS = {"en": "facebook/mms-tts-eng", "tl": "facebook/mms-tts-tgl"}
 # the speed slider still means the same thing for every voice.
 VOICES = {"standard": 1.0, "deep": 0.86, "bright": 1.16}
 
+# Every chunk is trimmed of the silence MMS/VITS puts at its start and end, so these
+# gaps are the ONLY pauses between chunks (previously the model's own edge silence
+# stacked on top of them, which is what sounded like long pauses at language switches).
 GAP_SENTENCE = 0.30   # seconds of silence after a sentence
-GAP_SWITCH = 0.06     # seconds between language runs inside a sentence
+GAP_SWITCH = 0.04     # seconds between language runs inside a sentence
+GAP_PART = 0.10       # seconds between pieces of one long run (split at commas)
 
 
 def compress_gaps(wav, sr, max_gap=0.18, thresh_db=-40.0, win=0.01):
@@ -59,6 +63,33 @@ def compress_gaps(wav, sr, max_gap=0.18, thresh_db=-40.0, win=0.01):
     out.append(wav[(last + 1) * h :])
     return np.concatenate(out).astype(np.float32)
 
+
+
+def trim_edges(wav, sr, thresh_db=-40.0, win=0.01, pad=0.02, fade=0.008):
+    """Cut leading/trailing near-silence (keeping `pad` seconds) and add a tiny
+    fade in/out so joined chunks don't click."""
+    if len(wav) < sr // 20:
+        return wav
+    h = max(1, int(sr * win))
+    n = len(wav) // h
+    if n < 2:
+        return wav
+    env = np.sqrt((wav[: n * h].reshape(n, h) ** 2).mean(axis=1))
+    peak = float(env.max())
+    if peak <= 0:
+        return wav
+    voiced = np.flatnonzero(env >= peak * (10 ** (thresh_db / 20.0)))
+    if len(voiced) == 0:
+        return wav
+    a = max(0, int(voiced[0]) * h - int(pad * sr))
+    b = min(len(wav), (int(voiced[-1]) + 1) * h + int(pad * sr))
+    out = wav[a:b].astype(np.float32).copy()
+    f = min(int(fade * sr), len(out) // 2)
+    if f > 1:
+        ramp = np.linspace(0.0, 1.0, f, dtype=np.float32)
+        out[:f] *= ramp
+        out[-f:] *= ramp[::-1]
+    return out
 
 
 class BaseEngine:
@@ -171,7 +202,7 @@ class MMSEngine(BaseEngine):
             with torch.inference_mode():
                 wave_t = model(**inputs).waveform[0]
             wave_np = wave_t.cpu().numpy().astype(np.float32)
-            return compress_gaps(wave_np, lang_sr), lang_sr
+            return trim_edges(compress_gaps(wave_np, lang_sr), lang_sr), lang_sr
 
 
 class MockEngine(BaseEngine):
@@ -242,7 +273,12 @@ def render_audio(engine, segments, voice="standard", rate=1.0, volume=1.0):
             continue
         if out_sr is None:
             out_sr = synthesized[0][1]  # fix the output rate from the first real chunk
-        parts = [_resample(w, sr, out_sr) for w, sr in synthesized]
+        gap_part = np.zeros(int(out_sr * GAP_PART), dtype=np.float32)
+        parts = []
+        for k, (w, sr) in enumerate(synthesized):
+            if k:
+                parts.append(gap_part)
+            parts.append(_resample(w, sr, out_sr))
         wav = _pitch_shift(np.concatenate(parts), pitch)
         pad = np.zeros(int(out_sr * (GAP_SENTENCE if seg["sentence_end"] else GAP_SWITCH)), dtype=np.float32)
         dur = len(wav) / out_sr
