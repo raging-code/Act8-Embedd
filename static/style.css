@@ -78,18 +78,19 @@ button.primary:disabled{opacity:.6;cursor:progress}
 .msg{min-height:22px;margin-top:10px;font:13px var(--mono);color:var(--muted)}
 .msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
 
-/* bot */
-.botsvg{display:block;width:min(260px,70%);margin:0 auto 6px}
-.botsvg .head{fill:#1f2a26;stroke:var(--line);stroke-width:2}
-.botsvg .screen{fill:#0b100e;stroke:#2f3d37}
-.botsvg .ear{fill:#27342f}
-.botsvg .ant{stroke:#41524a;stroke-width:3}
-.botsvg #antled{fill:#444}
-.botsvg .eye{fill:var(--en);transform-box:fill-box;transform-origin:center;animation:blink 5s infinite}
-.botsvg #mouth{fill:var(--accent)}
-#bot-panel.speaking #antled{fill:var(--ok);filter:drop-shadow(0 0 5px var(--ok))}
-#bot-panel.alert #antled{fill:var(--bad);filter:drop-shadow(0 0 6px var(--bad));animation:pulse .3s infinite}
-#bot-panel.alert .eye{fill:var(--bad)}
+/* bot - Obsidian face (idle / speaking / alert) */
+#bot-panel{--c:var(--en)}
+#bot-panel.alert{--c:var(--bad)}
+.botsvg{display:block;width:min(300px,82%);height:auto;margin:0 auto 6px}
+.botsvg .tint{fill:var(--c);transition:fill .2s}
+.botsvg .glow{opacity:.5}
+.botsvg .eye{transform-box:fill-box;transform-origin:center;animation:blink 5s infinite}
+.botsvg .mouth{transform-box:fill-box;transform-origin:center}
+.botsvg .bot-led{fill:#3d4c46;transition:fill .2s}
+#bot-panel.speaking .bot-led{fill:var(--ok)}
+#bot-panel.alert .bot-led{fill:var(--bad);animation:pulse .5s infinite}
+#bot-panel.alert .eye{animation:none;transform:scaleY(.4)}
+#bot-panel.alert .mouth{transform:scaleY(.7)}
 .now-label{font:12px var(--mono);color:var(--muted);text-align:center;letter-spacing:.1em;text-transform:uppercase;margin-top:4px}
 .now{min-height:64px;text-align:center;font-size:17px;line-height:1.7;padding:6px 4px}
 .now .idle{color:var(--muted);font-size:14px}

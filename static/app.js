@@ -12,7 +12,7 @@
     text: $("#text"), count: $("#count"), preview: $("#preview"), voice: $("#voice"),
     rate: $("#rate"), volume: $("#volume"), msg: $("#msg"), speak: $("#speak"),
     download: $("#download"), now: $("#now"), audio: $("#player"), panel: $("#bot-panel"),
-    mouth: $("#mouth"),
+    mouths: document.querySelectorAll("#bot-panel .mouth"),
   };
   const state = { lang: "auto", timeline: [], alertUntil: 0 };
 
@@ -54,7 +54,7 @@
     if (!text.trim()) return;
     const d = await api("/api/analyze", { text, lang: state.lang });
     if (!d.segments) return;
-    d.segments.forEach((s) => {
+    (d.detected || d.segments).forEach((s) => {
       const t = el("span", "tag " + s.lang);
       t.append(el("small", null, LANG[s.lang]), document.createTextNode(s.text));
       ui.preview.append(t);
@@ -111,7 +111,7 @@
   }
 
   /* ---------- bot mouth (driven by the real audio level) ---------- */
-  let actx, analyser, buf, amp = 0;
+  let actx, analyser, buf, amp = 0, lastRy, lastRx;
   function ensureAudioGraph() {
     if (actx) { if (actx.state === "suspended") actx.resume(); return; }
     try {
@@ -134,8 +134,11 @@
       highlight(ui.audio.currentTime);
     }
     amp = amp * 0.55 + target * 0.45;
-    ui.mouth.setAttribute("ry", (3 + amp * 20).toFixed(1));
-    ui.mouth.setAttribute("rx", (24 - amp * 5).toFixed(1));
+    const ry = (2.5 + amp * 11).toFixed(1), rx = (22 - amp * 5).toFixed(1);
+    if (ry !== lastRy || rx !== lastRx) {   // skip repaint of the blurred glow while idle
+      lastRy = ry; lastRx = rx;
+      ui.mouths.forEach((m) => { m.setAttribute("ry", ry); m.setAttribute("rx", rx); });
+    }
     ui.panel.classList.toggle("speaking", playing);
     ui.panel.classList.toggle("alert", performance.now() < state.alertUntil);
     requestAnimationFrame(frame);

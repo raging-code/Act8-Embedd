@@ -219,7 +219,7 @@ def _smooth_tags(tokens, tags, min_en_run=MIN_EN_RUN):
             tags[x] = target
 
 
-def _tag_sentence(tokens, mode, fallback):
+def _tag_sentence(tokens, mode, fallback, smooth=True):
     if mode in ("en", "tl"):
         return [mode] * len(tokens)
     tags = [classify_word(t) for t in tokens]
@@ -232,10 +232,10 @@ def _tag_sentence(tokens, mode, fallback):
             last = t
     first = next((t for t in tags if t), None) or fallback
     tags = [t or first for t in tags]     # leading unknowns take the first known tag
-    return _smooth_tags(tokens, tags)
+    return _smooth_tags(tokens, tags) if smooth else tags
 
 
-def segment_text(text, mode="auto"):
+def segment_text(text, mode="auto", smooth=True):
     """Split text into [{'text', 'lang', 'sentence_end'}] runs.
 
     mode: 'auto' (per-word detection), 'en' or 'tl' (force one language).
@@ -246,7 +246,7 @@ def segment_text(text, mode="auto"):
         tokens = sentence.split()
         if not tokens:
             continue
-        tags = _tag_sentence(tokens, mode, fallback)
+        tags = _tag_sentence(tokens, mode, fallback, smooth)
         fallback = tags[-1]
         run_words, run_lang = [tokens[0]], tags[0]
         sent_runs = []

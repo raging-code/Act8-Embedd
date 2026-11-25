@@ -17,6 +17,7 @@ from flask import Flask, abort, jsonify, render_template, request, send_from_dir
 from minibot.badwords import BadWordFilter
 from minibot.buzzer import Buzzer
 from minibot.engine import VOICES, create_engine, render_audio, write_wav
+from minibot.gibberish import find_gibberish
 from minibot.langdetect import segment_text, word_counts
 from minibot.player import DevicePlayer
 
@@ -102,7 +103,9 @@ def analyze():
     text = (data.get("text") or "")[:MAX_CHARS]
     mode = data.get("lang", "auto")
     segs = segment_text(text, mode if mode in ("en", "tl") else "auto")
-    return jsonify(segments=segs, flagged=badwords.find(text), words=word_counts(segs))
+    detected = segment_text(text, mode if mode in ("en", "tl") else "auto", smooth=False)
+    flagged = badwords.find(text) + [f"{g} (gibberish)" for g in find_gibberish(text)]
+    return jsonify(segments=segs, detected=detected, flagged=flagged, words=word_counts(segs))
 
 
 @app.post("/api/speak")
@@ -120,7 +123,7 @@ def speak():
     rate = _clamp(data.get("rate"), 0.5, 1.6, 1.0)
     volume = _clamp(data.get("volume"), 0.1, 1.0, 1.0)
 
-    flagged = badwords.find(text)
+    flagged = badwords.find(text) + [f"{g} (gibberish)" for g in find_gibberish(text)]
     if flagged:
         buzzer.alert()
     with _stats_lock:

@@ -83,15 +83,27 @@
   <section class="panel bot" aria-labelledby="h-bot" id="bot-panel">
     <h2 id="h-bot"><span>02</span> Talking Mini-Bot</h2>
     <svg viewBox="0 0 200 190" class="botsvg" role="img" aria-label="Mini-Bot face">
-      <line x1="100" y1="10" x2="100" y2="34" class="ant"/>
-      <circle cx="100" cy="9" r="6" id="antled"/>
-      <rect x="28" y="34" width="144" height="124" rx="26" class="head"/>
-      <rect x="40" y="46" width="120" height="100" rx="18" class="screen"/>
-      <ellipse class="eye" cx="76" cy="84" rx="10" ry="12"/>
-      <ellipse class="eye" cx="124" cy="84" rx="10" ry="12"/>
-      <ellipse id="mouth" cx="100" cy="124" rx="24" ry="3"/>
-      <rect x="10" y="80" width="12" height="36" rx="5" class="ear"/>
-      <rect x="178" y="80" width="12" height="36" rx="5" class="ear"/>
+      <defs>
+        <linearGradient id="ob-head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34403b"/><stop offset="1" stop-color="#121715"/></linearGradient>
+        <linearGradient id="ob-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9cbc2" stop-opacity=".75"/><stop offset=".45" stop-color="#b9cbc2" stop-opacity=".08"/><stop offset="1" stop-color="#b9cbc2" stop-opacity=".28"/></linearGradient>
+        <linearGradient id="ob-visor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1210"/><stop offset="1" stop-color="#040605"/></linearGradient>
+        <linearGradient id="ob-gloss" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".14"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+        <clipPath id="ob-clip"><rect x="38" y="46" width="124" height="94" rx="32"/></clipPath>
+        <filter id="ob-blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="5"/></filter>
+      </defs>
+      <ellipse cx="100" cy="176" rx="58" ry="6" fill="#000" opacity=".45" filter="url(#ob-blur)"/>
+      <rect x="12" y="84" width="10" height="38" rx="5" fill="#1b2320" stroke="url(#ob-rim)" stroke-width="1"/>
+      <rect x="178" y="84" width="10" height="38" rx="5" fill="#1b2320" stroke="url(#ob-rim)" stroke-width="1"/>
+      <rect x="24" y="28" width="152" height="132" rx="46" fill="url(#ob-head)" stroke="url(#ob-rim)" stroke-width="1.5"/>
+      <rect x="38" y="46" width="124" height="94" rx="32" fill="url(#ob-visor)" stroke="#27322d"/>
+      <g clip-path="url(#ob-clip)"><path d="M30 40 L120 40 L72 150 L30 150 Z" fill="url(#ob-gloss)"/></g>
+      <rect class="eye tint glow" x="64" y="74" width="14" height="28" rx="7" filter="url(#ob-blur)"/>
+      <rect class="eye tint glow" x="122" y="74" width="14" height="28" rx="7" filter="url(#ob-blur)"/>
+      <rect class="eye tint" x="64" y="74" width="14" height="28" rx="7"/>
+      <rect class="eye tint" x="122" y="74" width="14" height="28" rx="7"/>
+      <ellipse class="mouth tint glow" cx="100" cy="120" rx="22" ry="2.5" filter="url(#ob-blur)"/>
+      <ellipse class="mouth tint" cx="100" cy="120" rx="22" ry="2.5"/>
+      <circle class="bot-led" cx="100" cy="151" r="2.6"/>
     </svg>
     <p class="now-label">Now speaking</p>
     <div id="now" class="now"><span class="idle">Waiting for text…</span></div>
