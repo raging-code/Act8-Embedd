@@ -1,0 +1,47 @@
+English
+
+Hello everyone, welcome to our Activity 8 demo.
+The quick brown fox jumps over the lazy dog.
+The temperature is 25 degrees Celsius today.
+
+Tagalog
+
+Kumusta ka na? Maraming salamat sa pagbisita sa aming laboratoryo.
+Mahal kita, maraming salamat sa lahat.
+
+Taglish (auto-mix)
+
+Magandang umaga po! Today we will test the Raspberry Pi.
+Kumain ka na ba? I made adobo for lunch, masarap talaga.
+Let's order pizza mamaya, okay?
+I love you mahal ko.
+Mahal kita, thank you for everything.
+
+Numbers (number-to-words normalizer)
+
+Ang bilis ng internet ngayon, 100 percent stable.
+I have 21 apples and 3.14 pies.
+May 3 aso at 2024 na ngayon.
+
+Buzzer / bad-word filter
+
+Hey, don't be a gago, that is shit! (flags two words from data/badwords.txt; tick Block speech to show it refusing to speak)
+
+Tagalog (long)
+3. Magandang araw po sa inyong lahat. Ito ang aming proyekto sa laboratoryo na kayang magbasa ng teksto nang malakas. Isulat lang ang gusto ninyong sabihin sa website, at maririnig ninyo ito sa speaker. Maraming salamat po sa inyong pakikinig at pagsuporta.
+4. Kumusta ka na? Sana ay maayos ang iyong pakiramdam ngayong araw. Mahalaga ang magpahinga at kumain nang tama. Huwag kang mag-alala, kaya natin ito basta magtulungan tayo hanggang sa dulo.
+
+Taglish (long)
+5. Hello po sa lahat! Today we will present our mini-bot para sa Activity 8. Kapag nag-type ka ng sentence sa website, babasahin ito ng bot gamit ang tamang voice. Ang galing, di ba? Please give us your feedback pagkatapos ng demo, maraming salamat po.
+6. Kumain ka na ba? I made adobo for lunch, masarap talaga. Mamaya let's order pizza and watch a movie. Ang bilis ng internet ngayon, 100 percent stable, so walang lag kapag nag-stream tayo.
+7. Good morning, class! Magandang umaga po, Sir and Ma'am. Our group will explain how the language detector works. Hinahati nito ang bawat sentence into English at Tagalog, tapos ginagamit ang tamang voice para sa bawat bahagi.
+
+Numbers (long)
+8. We tested the bot 21 times today, and it was correct 100 percent of the time. The model weighs about 300 megabytes, and each sentence takes between 1 and 4 seconds to generate on the Pi.
+9. Noong 2024, may 3 aso, 15 pusa, at 21 estudyante sa aming klase. Ang kabuuang bayad ay 1,250 pesos. Maraming salamat po sa pagbibilang.
+
+Buzzer demo (long)
+10. Please stay calm, everyone. Hey, don't be a gago, that is shit! Sorry po, that was only a test of the bad-word filter. Ang buzzer ay tutunog nang tatlong beses kapag may nahuling masamang salita.
+
+Stress test, close to the 600-character limit
+11. Magandang umaga po sa lahat ng nandito ngayon. We are happy to present our Activity 8 project, a multilingual text-to-speech mini-bot. Kaya nitong magbasa ng English, Tagalog, at Taglish nang sabay-sabay. Pwede ninyong baguhin ang speed, ang volume, at ang voice, tapos i-download ang audio bilang wave file. Mayroon din itong buzzer na tumutunog kapag may bad word, at isang dashboard na nagpapakita ng talking mini-bot habang nagsasalita. Thank you for listening, at sana po ay nagustuhan ninyo ang aming demo. Maraming salamat po!
